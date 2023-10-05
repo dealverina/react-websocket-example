@@ -40,47 +40,49 @@ const ReactStompHooks = () => {
   return (
     <StompSessionProvider
       url={
-        "https://homelab-siswaku.oadcah.my.id/api/studentship/websocket/sockjs"
+        // "https://homelab-siswaku.oadcah.my.id/api/studentship/websocket/sockjs"
+        "https://development-local-siswaku.oadcah.my.id/api/studentship/websocket/sockjs"
       }
       onConnect={() => console.log("connect")}
     >
-      <InitQrCode />
       <Subscription />
     </StompSessionProvider>
   );
 };
 
 const Subscription = () => {
-  const [lastMessage, setLastMessage] = useState([]);
-
-  useSubscription("/user/receive/presensi", (message) => {
-    setLastMessage([...lastMessage, message.body]);
+  const [lastMessage, setLastMessage] = useState(null);
+  const [body, setBody] = useState({
+    qrId: undefined,
   });
-
-  return (
-    <div>
-      {lastMessage.map((value, index) => (
-        <div key={index}>{value}</div>
-      ))}
-    </div>
-  );
-};
-
-const InitQrCode = () => {
+  const [repeater, setRepeater] = useState(0);
   const stompClient = useStompClient();
 
+  useSubscription("/user/receive/presensi", (message) => {
+    const responseJson = JSON.parse(message.body)
+    setLastMessage(message.body);
+    setBody({ qrId: responseJson?.qrId });
+  });
+
   const generate = () => {
-    console.log("generate");
     if (stompClient) {
       if (stompClient) {
+        console.log(body.qrId ? body : undefined)
         stompClient.publish({
           destination: "/ws/presensi",
+          body: body.qrId ? JSON.stringify(body) : undefined
         });
       }
     }
   };
 
-  return <button onClick={generate}>Generate Qr Code</button>;
+  useEffect(() => {
+    generate();
+
+    setTimeout(() => setRepeater((prevState) => prevState + 1), 10000);
+  }, [repeater]);
+
+  return <div>{lastMessage}</div>;
 };
 
 function App() {
